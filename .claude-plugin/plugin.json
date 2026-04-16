@@ -1,0 +1,12 @@
+{
+  "name": "ceo-claude-setup",
+  "version": "1.0.0",
+  "description": "Full Claude Code setup for non-technical CEOs — skills, hooks, memory architecture, and daily workflows",
+  "author": {
+    "name": "Jeremy Shank",
+    "email": "jeremy.shank.1219@gmail.com"
+  },
+  "homepage": "https://github.com/jeremyshank/ceo-claude-setup",
+  "repository": "https://github.com/jeremyshank/ceo-claude-setup",
+  "license": "MIT"
+}
