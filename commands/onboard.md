@@ -2,7 +2,7 @@
 description: One-time setup wizard — writes your CLAUDE.md, installs RTK, and connects your tools
 ---
 
-# CEO Claude Code Onboarding
+# Claude Code Onboarding
 
 You are running the onboarding wizard. Follow these steps exactly, in order. Do not skip steps. Be conversational — no jargon.
 
@@ -32,10 +32,11 @@ Then stop.
 ## Step 3: Identity
 
 Ask: "What's your name?"
-Store as `{{CEO_NAME}}`.
+Store as `{{USER_NAME}}`.
 
-Ask: "What's the company called?"
-Store as `{{COMPANY_NAME}}`.
+Ask: "What's your main focus — a company, project, or hobby? (Optional — press enter to skip)"
+If they answer: store as `{{CONTEXT_NAME}}` and set `{{CONTEXT_LINE}}` = ` — {{CONTEXT_NAME}}`.
+If they skip: set `{{CONTEXT_NAME}}` = "" and `{{CONTEXT_LINE}}` = "".
 
 ## Step 4: Active projects
 
@@ -51,7 +52,7 @@ Take their free-form answer. Format it as a markdown table:
 
 Store as `{{ACTIVE_PROJECTS_TABLE}}`.
 
-Confirm: "Got it — [summary of what they said]. Does that look right?"
+Confirm: "Got it — [summary]. Does that look right?"
 
 ## Step 5: Communication style
 
@@ -106,7 +107,7 @@ Set `{{MACHINE_SPEC}}` to the output summary (e.g., "M4 Mac mini, 64GB").
 
 Set remaining placeholders:
 - ONBOARD_DATE = today's date (YYYY-MM-DD format)
-- VAULT_PATH = `~/Documents/[COMPANY_NAME] Brain/` (will be confirmed in /setup-memory)
+- VAULT_PATH = `~/Documents/[CONTEXT_NAME or "My"] Brain/` (will be confirmed in /setup-memory)
 - KG_PATH = `~/knowledge-graph/` (will be confirmed in /setup-memory)
 
 First, verify the plugin path is available:
@@ -114,7 +115,7 @@ First, verify the plugin path is available:
 echo "${CLAUDE_PLUGIN_ROOT:-UNSET}"
 ```
 
-If the output is `UNSET`, say: "It looks like this plugin wasn't installed via `claude plugin install`. Please reinstall it: `claude plugin install github:jeremyshank/ceo-claude-setup`" — then stop.
+If the output is `UNSET`, say: "It looks like this plugin wasn't installed via `claude plugin install`. Please reinstall it: `claude plugin install github:jerem-ai/claude-setup`" — then stop.
 
 Read the template at `${CLAUDE_PLUGIN_ROOT}/templates/CLAUDE.md.template`.
 Replace all {{PLACEHOLDER}} tokens with the collected values.
@@ -130,10 +131,10 @@ head -5 ~/.claude/CLAUDE.md
 Say nothing visible yet. Copy the hook scripts to ~/.claude/hooks/:
 ```bash
 mkdir -p ~/.claude/hooks
-cp "${CLAUDE_PLUGIN_ROOT}/hooks/secrets-guard.py" ~/.claude/hooks/ceo-secrets-guard.py
-cp "${CLAUDE_PLUGIN_ROOT}/hooks/session-logger.sh" ~/.claude/hooks/ceo-session-logger.sh
-cp "${CLAUDE_PLUGIN_ROOT}/hooks/rtk-rewrite.sh" ~/.claude/hooks/ceo-rtk-rewrite.sh
-chmod +x ~/.claude/hooks/ceo-session-logger.sh ~/.claude/hooks/ceo-rtk-rewrite.sh
+cp "${CLAUDE_PLUGIN_ROOT}/hooks/secrets-guard.py" ~/.claude/hooks/secrets-guard.py
+cp "${CLAUDE_PLUGIN_ROOT}/hooks/session-logger.sh" ~/.claude/hooks/session-logger.sh
+cp "${CLAUDE_PLUGIN_ROOT}/hooks/rtk-rewrite.sh" ~/.claude/hooks/rtk-rewrite.sh
+chmod +x ~/.claude/hooks/session-logger.sh ~/.claude/hooks/rtk-rewrite.sh
 ```
 
 Then announce:
@@ -144,7 +145,7 @@ Then announce:
 If Notion was connected:
 - Try a simple Notion MCP call (list databases or search)
 - If it responds: "Notion ✓"
-- If it fails: "Notion connection needs attention — mention it to Jeremy."
+- If it fails: "Notion connection needs attention — you can try reconnecting later with `claude mcp add notion`."
 
 If Google Calendar was connected:
 - Try gcal_list_events for today
@@ -158,7 +159,7 @@ Say exactly this:
 >
 > `/daily` — morning briefing: what's on your calendar, what needs your attention
 > `/digest` — summarize any backlog (Slack channel, Notion board, email thread)
-> `/review-mvp` — review something the CTO built
+> `/review` — structured four-lens review of any document, code, or proposal
 > `rtk gain` — check how much context this session has used
 >
 > One more step: when you're ready, run `/setup-memory` to set up your knowledge base. It takes about 20 minutes and I'll walk you through every step."

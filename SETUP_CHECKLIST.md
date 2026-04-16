@@ -1,4 +1,4 @@
-# CEO Claude Code Setup — Before You Start
+# Claude Code Setup — Before You Start
 
 Complete these 3 installs before running anything in Claude Code.
 Each one has a download button — no command line required.
@@ -19,7 +19,7 @@ Download from: https://claude.ai/download
 Download from: https://obsidian.md/download
 - Install the desktop app
 - When it asks to create a vault, click "Create new vault"
-- Name it after your company (e.g., "Acme Brain") — you can change this later
+- Name it whatever you like (e.g., "My Brain", "Work Notes", "Acme Brain")
 - Pick a location in your Documents folder
 
 ---

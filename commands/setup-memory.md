@@ -2,7 +2,7 @@
 description: Set up Obsidian vault, knowledge base, and memory architecture
 ---
 
-# /setup-memory — CEO Knowledge Base Setup
+# /setup-memory — Knowledge Base Setup
 
 ## How this works
 
@@ -15,7 +15,7 @@ You get:
 - **Background linker** that connects new notes to existing topics every 10 minutes
 - **Daily health check** that tells you if anything breaks
 
-This runs AFTER `/onboard` — your `COMPANY_NAME` and `CEO_NAME` are already in your CLAUDE.md.
+This runs AFTER `/onboard` — your `USER_NAME` and `CONTEXT_NAME` are already in your CLAUDE.md.
 
 **Time required:** ~20 minutes. Most steps are automated.
 
@@ -24,17 +24,17 @@ This runs AFTER `/onboard` — your `COMPANY_NAME` and `CEO_NAME` are already in
 ## Pre-Flight: Read Identity from CLAUDE.md
 
 Before asking any questions, silently read `~/.claude/CLAUDE.md` and extract:
-- `COMPANY_NAME` — look for lines like "company:" or the company name in the identity section
-- `CEO_NAME` — look for the user's name in the identity section
+- `USER_NAME` — look for the user's name in the identity section
+- `CONTEXT_NAME` — look for a company, project, or context name in the identity section
 
 ```bash
-grep -E "(company|Company|CEO|name):" ~/.claude/CLAUDE.md 2>/dev/null | head -20
+grep -E "(context|Context|name):" ~/.claude/CLAUDE.md 2>/dev/null | head -20
 cat ~/.claude/CLAUDE.md 2>/dev/null | head -40
 ```
 
-If both values are found, use them silently. If either is missing, ask:
-- "What's your name?" → store as CEO_NAME
-- "What's your company called?" → store as COMPANY_NAME
+If USER_NAME is found, use it silently. If missing, ask:
+- "What's your name?" → store as USER_NAME
+CONTEXT_NAME is optional — use it if present, leave blank if not.
 
 ---
 
@@ -79,13 +79,14 @@ fi
 
 Ask the user:
 
-> "Where do you want your knowledge base to live? The default is `~/Documents/[COMPANY_NAME] Brain/` — is that right, or do you want a different location?"
+> "Where do you want your knowledge base to live? The default is `~/Documents/[CONTEXT_NAME or 'My'] Brain/` — is that right, or do you want a different location?"
 
 Store their answer as `VAULT_PATH`. Use this path everywhere in this command.
 
 If the user says "yes" or "default" or "that's fine", construct the path as:
 ```bash
-VAULT_PATH="$HOME/Documents/[COMPANY_NAME] Brain"
+# Use CONTEXT_NAME if set, otherwise "My"
+VAULT_PATH="$HOME/Documents/${CONTEXT_NAME:-My} Brain"
 ```
 
 After vault path is confirmed, run additional checks:
@@ -169,7 +170,7 @@ git -C "${VAULT_PATH}" status 2>/dev/null
 
 **If the vault IS already a git repo:**
 ```bash
-git -C "${VAULT_PATH}" add -A && git -C "${VAULT_PATH}" commit -m "Vault snapshot before CEO memory setup"
+git -C "${VAULT_PATH}" add -A && git -C "${VAULT_PATH}" commit -m "Vault snapshot before memory setup"
 ```
 Report: "Vault committed. Local only. Undo with: `git -C ${VAULT_PATH} restore .`"
 
@@ -183,7 +184,7 @@ Report: "Vault committed. Local only. Undo with: `git -C ${VAULT_PATH} restore .
   echo ".obsidian/workspace-mobile.json" >> .gitignore
   echo ".DS_Store" >> .gitignore
   git add -A
-  git commit -m "Vault snapshot before CEO memory setup"
+  git commit -m "Vault snapshot before memory setup"
   ```
 - **Option B:** Proceed without git safety net (not recommended).
 - **Option C:** Stop and set up git manually first.
@@ -233,7 +234,7 @@ claude-vault init "${VAULT_PATH}/Conversations"
 claude-vault watch-path add ~/.claude/projects
 ```
 
-**SKIP initial sync** — CEO has no conversation history to import. Only new sessions created going forward will be captured.
+**SKIP initial sync** — only new sessions created going forward will be captured. If the user has existing Claude conversation exports they want to import, they can run `claude-vault sync` manually later.
 
 ### 4B: Claude Vault Background LaunchAgent
 
@@ -394,7 +395,7 @@ Create `${VAULT_PATH}/Index.md` (or update if it exists):
 tags: [index]
 ---
 
-# [COMPANY_NAME] Brain — Index
+# [CONTEXT_NAME or USER_NAME] Brain — Index
 
 ## Projects
 <!-- Links added as projects are created -->
@@ -429,23 +430,7 @@ Claude Code is the AI assistant this setup uses.
 <!-- Updated automatically as sessions reference this topic -->
 ```
 
-**`${VAULT_PATH}/${TOPICS_FOLDER}/[COMPANY_NAME].md`** (use actual company name):
-```markdown
----
-type: organization
-created: YYYY-MM-DD
-tags: [topic-note, organization]
----
-
-# [COMPANY_NAME]
-
-[COMPANY_NAME] is my company.
-
-## Related Notes
-<!-- Updated automatically as sessions reference this topic -->
-```
-
-**`${VAULT_PATH}/${TOPICS_FOLDER}/[CEO_NAME].md`** (use actual name):
+**`${VAULT_PATH}/${TOPICS_FOLDER}/[USER_NAME].md`** (use actual name):
 ```markdown
 ---
 type: person
@@ -453,9 +438,25 @@ created: YYYY-MM-DD
 tags: [topic-note, person]
 ---
 
-# [CEO_NAME]
+# [USER_NAME]
 
-I am [CEO_NAME], CEO of [COMPANY_NAME].
+I am [USER_NAME].
+
+## Related Notes
+<!-- Updated automatically as sessions reference this topic -->
+```
+
+**If CONTEXT_NAME is set — `${VAULT_PATH}/${TOPICS_FOLDER}/[CONTEXT_NAME].md`:**
+```markdown
+---
+type: project
+created: YYYY-MM-DD
+tags: [topic-note, project]
+---
+
+# [CONTEXT_NAME]
+
+[CONTEXT_NAME] is my main focus.
 
 ## Related Notes
 <!-- Updated automatically as sessions reference this topic -->
@@ -1157,11 +1158,11 @@ Create hook scripts directory:
 mkdir -p ~/.claude/hooks
 ```
 
-**Script 1: `~/.claude/hooks/ceo-session-logger.sh`** (fires on session end)
+**Script 1: `~/.claude/hooks/session-logger.sh`** (fires on session end)
 
 ```zsh
 #!/bin/zsh
-# CEO session logger — writes metadata stub if no full session log was saved
+# session logger — writes metadata stub if no full session log was saved
 INPUT=$(cat)
 CWD=$(echo "$INPUT" | python3.12 -c "import sys,json; print(json.load(sys.stdin).get('cwd',''))")
 DURATION=$(echo "$INPUT" | python3.12 -c "import sys,json; print(json.load(sys.stdin).get('duration_seconds',0))")
@@ -1257,7 +1258,7 @@ REMINDER
 
 **Make all scripts executable:**
 ```bash
-chmod +x ~/.claude/hooks/ceo-session-logger.sh
+chmod +x ~/.claude/hooks/session-logger.sh
 chmod +x ~/.claude/hooks/vault-context-loader.sh
 chmod +x ~/.claude/hooks/post-compact-reminder.sh
 ```
@@ -1278,7 +1279,7 @@ hooks = settings.setdefault('hooks', {})
 hooks['SessionEnd'] = [{
     'hooks': [{
         'type': 'command',
-        'command': os.path.expanduser('~/.claude/hooks/ceo-session-logger.sh')
+        'command': os.path.expanduser('~/.claude/hooks/session-logger.sh')
     }]
 }]
 
@@ -1307,7 +1308,7 @@ print('HOOKS_REGISTERED')
 
 ```bash
 # Test SessionEnd hook
-echo '{"session_id":"test-run","cwd":"/tmp","source":"clear","duration_seconds":120}' | ~/.claude/hooks/ceo-session-logger.sh
+echo '{"session_id":"test-run","cwd":"/tmp","source":"clear","duration_seconds":120}' | ~/.claude/hooks/session-logger.sh
 echo "SessionEnd hook: exit $?"
 
 # Test SessionStart hook
@@ -1396,11 +1397,11 @@ When done: expected output includes "Indexed N notes".
 ### 5. Write vault path to plugin config
 
 ```bash
-mkdir -p ~/.config/ceo-claude-setup
-CEO_VAULT_PATH="${VAULT_PATH}" python3.12 -c "
+mkdir -p ~/.config/claude-setup
+SETUP_VAULT_PATH="${VAULT_PATH}" python3.12 -c "
 import json, os
-vault = os.environ['CEO_VAULT_PATH']
-config_path = os.path.expanduser('~/.config/ceo-claude-setup/config.json')
+vault = os.environ['SETUP_VAULT_PATH']
+config_path = os.path.expanduser('~/.config/claude-setup/config.json')
 config = {}
 if os.path.exists(config_path):
     with open(config_path) as f:
@@ -1416,9 +1417,9 @@ print('CONFIG_WRITTEN')
 
 ```bash
 cd ~/knowledge-graph
-npm run cli -- search "[COMPANY_NAME]"
+npm run cli -- search "[CONTEXT_NAME or USER_NAME]"
 ```
-(Claude: substitute [COMPANY_NAME] with the actual company name collected in the pre-flight step)
+(Claude: substitute with CONTEXT_NAME if set, otherwise USER_NAME)
 
 If results return: "Knowledge graph ready"
 If error: "Knowledge graph indexed but search test failed — it may need a moment to finish indexing. Try `npm run cli -- search [your company name]` in a few minutes."

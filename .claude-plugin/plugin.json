@@ -1,12 +1,12 @@
 {
-  "name": "ceo-claude-setup",
+  "name": "claude-setup",
   "version": "1.0.0",
-  "description": "Full Claude Code setup for non-technical CEOs — skills, hooks, memory architecture, and daily workflows",
+  "description": "Full Claude Code setup for anyone — memory architecture, Obsidian vault, daily workflows, and connected tools. No technical experience required.",
   "author": {
     "name": "Jeremy Shank",
     "email": "jeremy.shank.1219@gmail.com"
   },
-  "homepage": "https://github.com/jeremyshank/ceo-claude-setup",
-  "repository": "https://github.com/jeremyshank/ceo-claude-setup",
+  "homepage": "https://github.com/jerem-ai/claude-setup",
+  "repository": "https://github.com/jerem-ai/claude-setup",
   "license": "MIT"
 }

@@ -6,7 +6,7 @@
 
 ## Identity
 
-{{CEO_NAME}} — {{COMPANY_NAME}}. Working on Claude Code on Mac.
+{{USER_NAME}}{{CONTEXT_LINE}}. Working on Claude Code on Mac.
 
 ## Communication Style
 
@@ -20,7 +20,7 @@
 
 - `/daily` — morning briefing (calendar + Slack + Notion)
 - `/digest [channel or link]` — summarize any backlog on demand
-- `/review-mvp` — review something the CTO built
+- `/review` — structured four-lens review of any document, code, or proposal
 - `rtk gain` — check how much context this session has used
 
 ## Memory
@@ -32,7 +32,6 @@
 ## Working Style
 
 - Direct. Skip preamble.
-- When reviewing technical work, focus on outcomes not implementation details.
 - When I say "ship it" — stop iterating.
 
 ## Environment

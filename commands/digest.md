@@ -51,7 +51,7 @@ TL;DR
 • [key point 5 if warranted]
 
 NEEDS YOUR ATTENTION
-• [item requiring CEO decision or response] — [who's waiting, if known]
+• [item requiring your decision or response] — [who's waiting, if known]
 [or "Nothing flagged" if clean]
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```

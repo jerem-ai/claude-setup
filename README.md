@@ -1,14 +1,14 @@
-# ceo-claude-setup
+# claude-setup
 
-Claude Code plugin for non-technical CEOs. Full setup in 3 steps.
+Claude Code setup plugin for anyone — friends, family, non-technical users. Full memory stack and daily workflows in 3 steps.
 
 ## Install
 
-**Step 1:** Install prerequisites — see [CEO_SETUP_CHECKLIST.md](CEO_SETUP_CHECKLIST.md)
+**Step 1:** Install prerequisites — see [SETUP_CHECKLIST.md](SETUP_CHECKLIST.md)
 
 **Step 2:**
 ```bash
-claude plugin install github:jeremyshank/ceo-claude-setup
+claude plugin install github:jerem-ai/claude-setup
 ```
 
 **Step 3:** Open Claude Code and run `/onboard`
@@ -20,7 +20,7 @@ claude plugin install github:jeremyshank/ceo-claude-setup
 | `/onboard` | One-time setup: writes your CLAUDE.md, installs RTK, connects MCPs |
 | `/setup-memory` | Sets up Obsidian vault, auto-linker, and knowledge graph |
 | `/daily` | Morning briefing: calendar + Slack + Notion |
-| `/review-mvp` | CEO lens review of technical work |
+| `/review` | Structured four-lens review of any document, code, or proposal |
 | `/digest` | Summarize any backlog on demand |
 
 ## What's included
@@ -31,15 +31,15 @@ claude plugin install github:jeremyshank/ceo-claude-setup
 
 ## Updating
 
-To push updates (for Jeremy):
+Users get updates by running:
 ```bash
-cd ~/Desktop/ceo-claude-setup
-git push origin main
+claude plugin update claude-setup
 ```
 
-CEO gets updates by running:
+To push updates:
 ```bash
-claude plugin update ceo-claude-setup
+cd ~/Desktop/claude-setup
+git push origin main
 ```
 
 ## Requirements
