@@ -44,9 +44,10 @@ git push origin main
 
 ## Requirements
 
-- macOS
-- Claude Code (desktop app)
+- Claude Code (desktop app) — macOS, Linux, or Windows
 - Obsidian
-- CMUX (Claude MUX)
 - Node.js (for knowledge graph)
 - Python 3.12 (for vault tools)
+- **Mac only:** CMUX (Claude MUX) — optional, for multi-session layouts
+- **Linux:** bash 5+, systemd user services
+- **Windows:** Git Bash or WSL in PATH (for hook scripts), Task Scheduler (built-in)

@@ -21,6 +21,25 @@ This runs AFTER `/onboard` — your `USER_NAME` and `CONTEXT_NAME` are already i
 
 ---
 
+## OS Detection
+
+Run this first and store `$PLATFORM` — every subsequent step references it.
+
+```bash
+OS="$(uname -s 2>/dev/null)"
+case "$OS" in
+  Darwin)          PLATFORM="mac" ;;
+  Linux)           PLATFORM="linux" ;;
+  MINGW*|MSYS*|CYGWIN*) PLATFORM="windows" ;;
+  *)               PLATFORM="unknown" ;;
+esac
+echo "Platform: $PLATFORM"
+```
+
+For Windows without WSL, many steps require PowerShell. Tell the user if `$PLATFORM == "windows"`: "Some steps will use PowerShell. Run them in a PowerShell terminal."
+
+---
+
 ## Pre-Flight: Read Identity from CLAUDE.md
 
 Before asking any questions, silently read `~/.claude/CLAUDE.md` and extract:
@@ -48,7 +67,10 @@ find ~/ -name ".obsidian" -maxdepth 5 -type d 2>/dev/null
 
 # Check Claude Vault
 ls ~/claude-vault/venv/bin/claude-vault 2>/dev/null
-launchctl list 2>/dev/null | grep claudevault
+# Mac only
+[ "$PLATFORM" = "mac" ] && launchctl list 2>/dev/null | grep claudevault
+# Linux
+[ "$PLATFORM" = "linux" ] && systemctl --user is-active claude-vault-watch.service 2>/dev/null || true
 
 # Check existing CLAUDE.md
 ls ~/.claude/CLAUDE.md 2>/dev/null
@@ -148,16 +170,31 @@ OK to proceed?
 
 ## STEP 1: Prerequisites Check
 
-Check and install if missing: Python 3.12, Git, Node.js (v18+), Homebrew.
+Check and install if missing: Python 3.12, Git, Node.js (v18+). Package manager varies by platform.
 
 ```bash
 which python3.12 2>/dev/null || echo "PYTHON312_MISSING"
 which git 2>/dev/null || echo "GIT_MISSING"
 which node 2>/dev/null || echo "NODE_MISSING"
-which brew 2>/dev/null || echo "BREW_MISSING"
+
+# Package manager check (platform-specific)
+if [ "$PLATFORM" = "mac" ]; then
+  which brew 2>/dev/null || echo "BREW_MISSING"
+elif [ "$PLATFORM" = "linux" ]; then
+  which apt-get 2>/dev/null || which dnf 2>/dev/null || which pacman 2>/dev/null || echo "PKG_MANAGER_UNKNOWN"
+elif [ "$PLATFORM" = "windows" ]; then
+  which winget 2>/dev/null || which choco 2>/dev/null || echo "PKG_MANAGER_MISSING"
+fi
 ```
 
-Install anything missing without asking. Report what was found and what was installed.
+Install anything missing without asking, using the appropriate package manager:
+
+- **Mac** — `brew install python@3.12 git node`
+- **Linux (Debian/Ubuntu)** — `sudo apt-get install -y python3.12 git nodejs npm`
+- **Linux (Fedora/RHEL)** — `sudo dnf install -y python3.12 git nodejs`
+- **Windows** — `winget install Python.Python.3.12 Git.Git OpenJS.NodeJS`
+
+Report what was found and what was installed.
 
 ---
 
@@ -236,7 +273,9 @@ claude-vault watch-path add ~/.claude/projects
 
 **SKIP initial sync** — only new sessions created going forward will be captured. If the user has existing Claude conversation exports they want to import, they can run `claude-vault sync` manually later.
 
-### 4B: Claude Vault Background LaunchAgent
+### 4B: Claude Vault Background Service
+
+**Mac — LaunchAgent:**
 
 Create `~/Library/LaunchAgents/com.claudevault.watch.plist`:
 
@@ -270,12 +309,53 @@ Create `~/Library/LaunchAgents/com.claudevault.watch.plist`:
 </plist>
 ```
 
-Replace `[USERNAME]` with the actual username (`$(whoami)`). Then:
+Replace `[USERNAME]` with `$(whoami)`. Then:
 
 ```bash
 launchctl load ~/Library/LaunchAgents/com.claudevault.watch.plist
 sleep 3
 launchctl list | grep claudevault
+```
+
+---
+
+**Linux — systemd user service:**
+
+Create `~/.config/systemd/user/claude-vault-watch.service`:
+
+```ini
+[Unit]
+Description=Claude Vault Watch
+After=default.target
+
+[Service]
+Type=simple
+ExecStart=/bin/bash -c 'source ~/claude-vault/venv/bin/activate && claude-vault watch'
+Restart=always
+StandardOutput=append:%h/claude-vault/watch.log
+StandardError=append:%h/claude-vault/watch-error.log
+
+[Install]
+WantedBy=default.target
+```
+
+Then:
+
+```bash
+systemctl --user daemon-reload
+systemctl --user enable --now claude-vault-watch.service
+systemctl --user status claude-vault-watch.service
+```
+
+---
+
+**Windows — Task Scheduler:**
+
+```powershell
+$action = New-ScheduledTaskAction -Execute "cmd.exe" -Argument '/c "C:\Users\%USERNAME%\claude-vault\venv\Scripts\activate && claude-vault watch >> C:\Users\%USERNAME%\claude-vault\watch.log 2>&1"'
+$trigger = New-ScheduledTaskTrigger -AtLogOn
+Register-ScheduledTask -TaskName "ClaudeVaultWatch" -Action $action -Trigger $trigger -RunLevel Highest -Force
+Start-ScheduledTask -TaskName "ClaudeVaultWatch"
 ```
 
 ---
@@ -934,9 +1014,18 @@ def check_vault_health(config_path=None, vault_path=None):
                               f"{orphans}/{total} ({pct:.0f}%)")
     else:
         results["orphans"] = ("OK", "No files")
+    import platform as _platform
+    _sys = _platform.system()
     try:
-        r = subprocess.run(['launchctl', 'list'], capture_output=True, text=True, timeout=10)
-        results["claude_vault"] = ("OK", "Running") if 'com.claudevault.watch' in r.stdout else ("CRIT", "Not loaded")
+        if _sys == "Darwin":
+            r = subprocess.run(['launchctl', 'list'], capture_output=True, text=True, timeout=10)
+            results["claude_vault"] = ("OK", "Running") if 'com.claudevault.watch' in r.stdout else ("CRIT", "Not loaded")
+        elif _sys == "Linux":
+            r = subprocess.run(['systemctl', '--user', 'is-active', 'claude-vault-watch.service'],
+                               capture_output=True, text=True, timeout=10)
+            results["claude_vault"] = ("OK", "Running") if r.stdout.strip() == 'active' else ("CRIT", "Not loaded")
+        else:
+            results["claude_vault"] = ("INFO", "Cannot check on this platform")
     except (subprocess.TimeoutExpired, OSError):
         results["claude_vault"] = ("CRIT", "Cannot check")
     td = os.path.join(vp, config["topics_folder"])
@@ -976,7 +1065,6 @@ def check_vault_health(config_path=None, vault_path=None):
 
 def format_health_md(results):
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    emoji = {"OK": "OK", "WARN": "WARN", "CRIT": "CRIT", "INFO": "INFO"}
     labels = {"linker_recency": "Topic linker", "lockfile": "Lockfile", "orphans": "Cross-folder orphans",
               "claude_vault": "Claude Vault", "topics_folder": "Topics folder", "session_recency": "Session log recency",
               "export_recency": "Export recency", "topic_freshness": "Topic freshness", "linker_script": "Linker script valid"}
@@ -989,7 +1077,7 @@ def format_health_md(results):
         for k, label in labels.items():
             if k in results:
                 s, d = results[k]
-                lines.append(f"| {label} | {emoji.get(s, '?')} {s} | {d} |")
+                lines.append(f"| {label} | {s} | {d} |")
     lines.append(f"| Version | INFO v{VERSION} | |")
     lines.append("")
     return "\n".join(lines)
@@ -1040,7 +1128,9 @@ Make executable:
 chmod +x ~/claude-vault/vault-health.py
 ```
 
-### 9D: Create LaunchAgents
+### 9D: Create Background Services
+
+**Mac — LaunchAgents:**
 
 Create `~/Library/LaunchAgents/com.obsidian.topic-linker.plist`:
 
@@ -1112,6 +1202,92 @@ sleep 3
 launchctl list | grep -E 'topic-linker|vault-health'
 ```
 
+---
+
+**Linux — systemd user services:**
+
+Create `~/.config/systemd/user/obsidian-topic-linker.service`:
+
+```ini
+[Unit]
+Description=Obsidian Topic Linker
+After=default.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/env python3.12 %h/claude-vault/topic-linker.py
+StandardOutput=append:%h/claude-vault/topic-linker-stdout.log
+StandardError=append:%h/claude-vault/topic-linker-stderr.log
+```
+
+Create `~/.config/systemd/user/obsidian-topic-linker.timer`:
+
+```ini
+[Unit]
+Description=Run topic linker every 10 minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=10min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+```
+
+Create `~/.config/systemd/user/obsidian-vault-health.service`:
+
+```ini
+[Unit]
+Description=Obsidian Vault Health Check
+After=default.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/env python3.12 %h/claude-vault/vault-health.py
+StandardOutput=append:%h/claude-vault/vault-health-stdout.log
+StandardError=append:%h/claude-vault/vault-health-stderr.log
+```
+
+Create `~/.config/systemd/user/obsidian-vault-health.timer`:
+
+```ini
+[Unit]
+Description=Run vault health check daily at 8am
+
+[Timer]
+OnCalendar=*-*-* 08:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+```
+
+Then enable all:
+
+```bash
+systemctl --user daemon-reload
+systemctl --user enable --now obsidian-topic-linker.timer
+systemctl --user enable --now obsidian-vault-health.timer
+systemctl --user list-timers | grep obsidian
+```
+
+---
+
+**Windows — Task Scheduler:**
+
+```powershell
+# Topic linker — every 10 minutes
+$action = New-ScheduledTaskAction -Execute "python3.12" -Argument "$env:USERPROFILE\claude-vault\topic-linker.py"
+$trigger = New-ScheduledTaskTrigger -RepetitionInterval (New-TimeSpan -Minutes 10) -Once -At (Get-Date)
+Register-ScheduledTask -TaskName "ObsidianTopicLinker" -Action $action -Trigger $trigger -Force
+
+# Vault health — daily at 8am
+$action2 = New-ScheduledTaskAction -Execute "python3.12" -Argument "$env:USERPROFILE\claude-vault\vault-health.py"
+$trigger2 = New-ScheduledTaskTrigger -Daily -At "08:00"
+Register-ScheduledTask -TaskName "ObsidianVaultHealth" -Action $action2 -Trigger $trigger2 -Force
+```
+
 ### 9E: Verify linker with --dry-run
 
 ```bash
@@ -1160,8 +1336,10 @@ mkdir -p ~/.claude/hooks
 
 **Script 1: `~/.claude/hooks/session-logger.sh`** (fires on session end)
 
-```zsh
-#!/bin/zsh
+Use `#!/bin/zsh` on Mac (system bash is v3), `#!/bin/bash` on Linux/Windows.
+
+```bash
+#!/usr/bin/env bash
 # session logger — writes metadata stub if no full session log was saved
 INPUT=$(cat)
 CWD=$(echo "$INPUT" | python3.12 -c "import sys,json; print(json.load(sys.stdin).get('cwd',''))")
@@ -1208,8 +1386,8 @@ STUB
 
 **Script 2: `~/.claude/hooks/vault-context-loader.sh`** (fires on session start)
 
-```zsh
-#!/bin/zsh
+```bash
+#!/usr/bin/env bash
 INPUT=$(cat)
 CWD=$(echo "$INPUT" | python3.12 -c "import sys,json; print(json.load(sys.stdin).get('cwd',''))")
 
@@ -1246,8 +1424,8 @@ CONTEXT
 
 **Script 3: `~/.claude/hooks/post-compact-reminder.sh`** (fires before context compaction)
 
-```zsh
-#!/bin/zsh
+```bash
+#!/usr/bin/env bash
 cat << REMINDER
 CONTEXT COMPACTION NOTICE:
 Your context was just compacted. If you have not already saved an interim session log, write one NOW to ${VAULT_PATH}/Sessions/ based on what you still know. Use the filename pattern: YYYY-MM-DD-<project>-interim-<N>.md. Even a partial log is better than no log.
@@ -1431,8 +1609,12 @@ If error: "Knowledge graph indexed but search test failed — it may need a mome
 Run a final check across all components:
 
 ```bash
-# Claude Vault watch service
-launchctl list | grep claudevault
+# Claude Vault watch service (platform-specific)
+if [ "$PLATFORM" = "mac" ]; then
+  launchctl list | grep claudevault
+elif [ "$PLATFORM" = "linux" ]; then
+  systemctl --user is-active claude-vault-watch.service
+fi
 
 # CLAUDE.md protocols
 grep -c "OBSIDIAN AUTO-ARCHIVE PROTOCOL" ~/.claude/CLAUDE.md
@@ -1444,12 +1626,20 @@ ls "${VAULT_PATH}/"
 # Topic notes
 ls "${VAULT_PATH}/${TOPICS_FOLDER}/" | wc -l
 
-# Linker
-launchctl list | grep topic-linker
+# Linker service (platform-specific)
+if [ "$PLATFORM" = "mac" ]; then
+  launchctl list | grep topic-linker
+elif [ "$PLATFORM" = "linux" ]; then
+  systemctl --user is-active obsidian-topic-linker.timer
+fi
 python3.12 ~/claude-vault/topic-linker.py --dry-run 2>/dev/null && echo "LINKER_OK"
 
-# Health check
-launchctl list | grep vault-health
+# Health check service (platform-specific)
+if [ "$PLATFORM" = "mac" ]; then
+  launchctl list | grep vault-health
+elif [ "$PLATFORM" = "linux" ]; then
+  systemctl --user is-active obsidian-vault-health.timer
+fi
 
 # Config
 cat ~/.config/topic-linker/config.json | python3.12 -c "import json,sys; d=json.load(sys.stdin); print('CONFIG_OK' if d.get('vault_path') else 'CONFIG_EMPTY')"
@@ -1497,9 +1687,11 @@ Then tell the user:
 - Do NOT hardcode any paths — use `${VAULT_PATH}` and `${TOPICS_FOLDER}` everywhere
 - Use ABSOLUTE PATHS everywhere in CLAUDE.md and hook scripts, never relative paths
 - Use `python3.12` explicitly for all Python commands
-- Use `zsh` for all hook scripts (macOS bash is v3 — missing modern features)
+- **Mac:** use `zsh` for hook scripts (macOS ships bash v3 — missing modern features); **Linux/Windows:** `#!/usr/bin/env bash` is fine (bash v5+)
 - Run `pip install --upgrade pip` before any pip install (Apple Python ships outdated pip)
-- Store Claude Vault state DB outside `~/Documents/` to avoid macOS TCC sandbox crashes
+- **Mac only:** Store Claude Vault state DB outside `~/Documents/` to avoid macOS TCC sandbox crashes
+- **Linux:** use `systemctl --user` for background services (no root required); enable lingering with `loginctl enable-linger $USER` if services must survive logout
+- **Windows:** use PowerShell for Task Scheduler registration; hook scripts require Git Bash or WSL in PATH
 - If CLAUDE.md already has content, PRESERVE it — add protocol sections, don't replace the file
 - NEVER modify file content inline to add links — only append "See Also" footer sections
 - Audit what's already installed before re-executing steps

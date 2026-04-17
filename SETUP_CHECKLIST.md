@@ -24,15 +24,21 @@ Download from: https://obsidian.md/download
 
 ---
 
-## Step 3: Claude MUX (CMUX)
+## Step 3: Node.js
 
-CMUX lets you run multiple Claude Code sessions at once in a clean layout.
+Required for the knowledge graph (semantic search over your vault).
+
+Download the LTS version from https://nodejs.org — install it and you're done.
+
+---
+
+## Step 4: Claude MUX (CMUX) — Mac only, optional
+
+CMUX lets you run multiple Claude Code sessions at once in a clean layout. Skip this if you're on Linux or Windows, or if you don't need multi-session.
 
 ```bash
 npm install -g @anthropic-ai/claude-mux
 ```
-
-If you don't have npm: install Node.js first from https://nodejs.org (LTS version)
 
 ---
 
