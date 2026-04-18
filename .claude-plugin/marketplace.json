@@ -1,0 +1,13 @@
+{
+  "name": "claude-setup",
+  "owner": {
+    "name": "Jeremy Shank"
+  },
+  "plugins": [
+    {
+      "name": "claude-setup",
+      "source": ".",
+      "description": "Full Claude Code setup for anyone — memory architecture, Obsidian vault, daily workflows, and connected tools."
+    }
+  ]
+}
