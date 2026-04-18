@@ -6,7 +6,7 @@
   "plugins": [
     {
       "name": "claude-setup",
-      "source": ".",
+      "source": "./plugin",
       "description": "Full Claude Code setup for anyone — memory architecture, Obsidian vault, daily workflows, and connected tools."
     }
   ]
